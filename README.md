@@ -1,6 +1,6 @@
 # Rotordynamics and Vibration Toolkit
 
-The shaft model here reports 50.768 Hz for the first bending mode of a pinned shaft, and the closed form answer of 50.778 Hz is sitting right next to it in a test. You can see the gap yourself. It's a small Python library for linear vibration analysis and rotor dynamics, and that pairing of a computed number with a reference number runs through all of it. Every closed form in the SDOF, MDOF, Jeffcott and beam modules is checked against an independent reference in the test suite, and the finite element model is cross checked against Euler-Bernoulli theory, the Jeffcott limit and the rigid disk gyroscopic formula. Here's what it covers.
+The shaft model here reports 50.768 Hz for the first bending mode of a pinned shaft, and the closed form answer of 50.778 Hz is sitting right next to it in a test. It's a small Python library for linear vibration analysis and rotor dynamics, and that pairing of a computed number with a reference number runs through all of it. Every closed form in the SDOF, MDOF, Jeffcott and beam modules is checked against an independent reference in the test suite, and the finite element model is cross checked against Euler-Bernoulli theory, the Jeffcott limit and the rigid disk gyroscopic formula.
 
 ## What's in it
 
