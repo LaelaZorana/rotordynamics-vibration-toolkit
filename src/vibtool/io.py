@@ -2,7 +2,7 @@
 
 Rotor definitions are YAML or JSON files with a station table, disks, bearings
 and unbalance cases. Run up measurements are CSV files of 1x vibration vectors
-versus speed. The standards tables are small CSVs shipped in data/ with their
+versus speed. The standards tables are small CSVs stored in data/ with their
 sources listed in data/README.md."""
 from __future__ import annotations
 
