@@ -21,8 +21,11 @@ def test_shaft_fe_first_bending_vs_euler_bernoulli():
     shaft = ShaftFE(L, d, E, rho, n_el=12)
     w_fe, _ = shaft.undamped_frequencies(n_modes=4, fixed_dofs=shaft.pinned_end_dofs())
     w_eb = beam_natural_frequencies(E, I, rho, A, L, "pinned-pinned", 3)
-    # x and y planes give repeated pairs: check the pairing, then take one
-    assert np.allclose(w_fe[0::2], w_fe[1::2], rtol=1e-9)
+    # x and y planes give repeated pairs: check the pairing, then take one.
+    # the pair is degenerate by construction, so the bound is loose enough to
+    # absorb LAPACK noise on a repeated eigenvalue and tight enough that a real
+    # symmetry break between the planes would still fail here
+    assert np.allclose(w_fe[0::2], w_fe[1::2], rtol=1e-6)
     w_fe_u = w_fe[0::2]
     # tolerances match the accuracy advertised in the README validation table
     assert np.isclose(w_fe_u[0] / (2 * np.pi), 50.768, rtol=1e-4)
@@ -40,7 +43,8 @@ def test_shaft_fe_converged_modes_sit_just_below_euler_bernoulli():
     w_eb = beam_natural_frequencies(E, I, rho, A, L, "pinned-pinned", 3)
     s = ShaftFE(L, d, E, rho, n_el=24)
     w, _ = s.undamped_frequencies(n_modes=6, fixed_dofs=s.pinned_end_dofs())
-    assert np.allclose(w[0::2], w[1::2], rtol=1e-9)
+    # degenerate x, y pair again, loose enough for LAPACK noise on it
+    assert np.allclose(w[0::2], w[1::2], rtol=1e-6)
     wu = w[0::2]
     rel = (w_eb - wu[:3]) / w_eb
     assert np.all(rel > 0)

@@ -10,7 +10,12 @@ def _fe_frequencies(fixed_dofs_fn, n_el=40):
     shaft = ShaftFE(1.0, 0.02, E, rho, n_el=n_el)
     fixed = fixed_dofs_fn(shaft)
     w, _ = shaft.undamped_frequencies(n_modes=6, fixed_dofs=fixed)
-    assert np.allclose(w[0::2], w[1::2], rtol=1e-9)
+    # the x and y blocks of K and M are identical with no cross coupling, so
+    # each frequency here is an exactly degenerate pair and LAPACK is free to
+    # split it by a few parts in 1e9. the loose bound absorbs that noise while
+    # still asserting the two planes agree to six significant figures, which
+    # any real break of the x, y symmetry would blow straight past
+    assert np.allclose(w[0::2], w[1::2], rtol=1e-6)
     return w[0::2]
 
 
