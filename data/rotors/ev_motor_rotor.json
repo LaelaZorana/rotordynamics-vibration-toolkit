@@ -1,0 +1,35 @@
+{
+  "name": "ev-traction-motor",
+  "description": "Permanent magnet traction motor rotor for a passenger EV, lamination stack shrink fitted on the shaft between two deep groove ball bearings, resolver stub at the non drive end. Representative dimensions for a 150 kW machine, written for this toolkit and not taken from any real drawing. The model section gives the equivalent uniform diameter for the FE shaft.",
+  "units": "SI",
+  "service_speed_rpm": 15000,
+  "material": {
+    "name": "42CrMo4 steel",
+    "E_Pa": 2.1e11,
+    "rho_kg_m3": 7850.0
+  },
+  "model": {
+    "n_el": 16,
+    "equivalent_diameter_m": 0.042
+  },
+  "stations": [
+    {"name": "de_spline", "length_m": 0.045, "outer_diameter_m": 0.028},
+    {"name": "de_bearing_seat", "length_m": 0.030, "outer_diameter_m": 0.035},
+    {"name": "de_shoulder", "length_m": 0.025, "outer_diameter_m": 0.045},
+    {"name": "stack_seat", "length_m": 0.160, "outer_diameter_m": 0.048},
+    {"name": "nde_shoulder", "length_m": 0.025, "outer_diameter_m": 0.045},
+    {"name": "nde_bearing_seat", "length_m": 0.030, "outer_diameter_m": 0.030},
+    {"name": "resolver_stub", "length_m": 0.035, "outer_diameter_m": 0.020}
+  ],
+  "disks": [
+    {"name": "lamination_stack", "station": "stack_seat", "mass_kg": 9.4, "Id_kg_m2": 0.021, "Ip_kg_m2": 0.032},
+    {"name": "resolver_rotor", "station": "resolver_stub", "mass_kg": 0.25, "Id_kg_m2": 5.0e-5, "Ip_kg_m2": 9.0e-5}
+  ],
+  "bearings": [
+    {"name": "de_ball_bearing", "station": "de_bearing_seat", "k_N_per_m": 6.0e7, "c_Ns_per_m": 120.0},
+    {"name": "nde_ball_bearing", "station": "nde_bearing_seat", "k_N_per_m": 4.5e7, "c_Ns_per_m": 90.0}
+  ],
+  "unbalance_cases": [
+    {"name": "G2.5_stack_plane", "standard": "ISO 21940-11", "grade": "G2.5", "station": "stack_seat", "unbalance_kg_m": 1.6e-5}
+  ]
+}

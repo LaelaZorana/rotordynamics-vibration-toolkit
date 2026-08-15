@@ -1,0 +1,55 @@
+# Small industrial back pressure steam turbine rotor, drive through a flexible
+# coupling. Dimensions and masses are representative of a 3 MW single casing
+# machine, written for this toolkit and not taken from any real drawing.
+name: small-steam-turbine
+description: >
+  Three stage impulse rotor between two fluid film journal bearings, coupling
+  overhang at the drive end. The station table lists each shaft section from
+  the drive end with its length and outer diameter. The FE model in this
+  toolkit is a uniform shaft, so the model section gives an equivalent uniform
+  diameter matched to the bending stiffness of the stepped shaft between the
+  bearings.
+units: SI
+service_speed_rpm: 7500
+
+material:
+  name: 30CrMoV steel forging
+  E_Pa: 2.05e11
+  rho_kg_m3: 7850.0
+
+model:
+  n_el: 24
+  equivalent_diameter_m: 0.135
+
+stations:
+  - {name: coupling_stub, length_m: 0.15, outer_diameter_m: 0.090}
+  - {name: de_journal, length_m: 0.12, outer_diameter_m: 0.110}
+  - {name: de_shaft, length_m: 0.28, outer_diameter_m: 0.140}
+  - {name: stage_1, length_m: 0.10, outer_diameter_m: 0.150}
+  - {name: mid_shaft_1, length_m: 0.18, outer_diameter_m: 0.150}
+  - {name: stage_2, length_m: 0.10, outer_diameter_m: 0.150}
+  - {name: mid_shaft_2, length_m: 0.18, outer_diameter_m: 0.150}
+  - {name: stage_3, length_m: 0.10, outer_diameter_m: 0.150}
+  - {name: nde_shaft, length_m: 0.28, outer_diameter_m: 0.140}
+  - {name: nde_journal, length_m: 0.12, outer_diameter_m: 0.110}
+  - {name: thrust_end, length_m: 0.09, outer_diameter_m: 0.080}
+
+disks:
+  - {name: stage_1_wheel, station: stage_1, mass_kg: 62.0, Id_kg_m2: 0.95, Ip_kg_m2: 1.85}
+  - {name: stage_2_wheel, station: stage_2, mass_kg: 71.0, Id_kg_m2: 1.20, Ip_kg_m2: 2.35}
+  - {name: stage_3_wheel, station: stage_3, mass_kg: 84.0, Id_kg_m2: 1.55, Ip_kg_m2: 3.05}
+  - {name: coupling_half, station: coupling_stub, mass_kg: 18.0, Id_kg_m2: 0.06, Ip_kg_m2: 0.11}
+
+bearings:
+  # Linearised fluid film coefficients at service speed, isotropic average of
+  # the horizontal and vertical direct terms.
+  - {name: de_journal_bearing, station: de_journal, k_N_per_m: 2.4e8, c_Ns_per_m: 2.6e4}
+  - {name: nde_journal_bearing, station: nde_journal, k_N_per_m: 2.1e8, c_Ns_per_m: 2.2e4}
+
+unbalance_cases:
+  # ISO 21940-11 grade G2.5 at 7500 rpm: e_per = 2500/omega = 3.18 micrometres
+  # for omega = 785.4 rad/s. Rotor mass 470 kg gives U_per = 1.50e-3 kg m,
+  # split between the two correction planes on the outer stage wheels.
+  - {name: G2.5_plane_stage_1, standard: ISO 21940-11, grade: G2.5, station: stage_1, unbalance_kg_m: 7.5e-4}
+  - {name: G2.5_plane_stage_3, standard: ISO 21940-11, grade: G2.5, station: stage_3, unbalance_kg_m: 7.5e-4}
+  - {name: commissioning_worst_case_4x_G2.5, standard: ISO 21940-11, grade: G10 approximate, station: stage_2, unbalance_kg_m: 3.0e-3}

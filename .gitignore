@@ -2,3 +2,10 @@ __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
+.DS_Store
+.venv/
+venv/
+build/
+dist/
+.idea/
+.vscode/

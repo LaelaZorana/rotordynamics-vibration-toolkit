@@ -1,0 +1,13 @@
+machine_group,support,zone_boundary,velocity_mm_s_rms
+group1_large_300kW_to_50MW,rigid,A_B,2.3
+group1_large_300kW_to_50MW,rigid,B_C,4.5
+group1_large_300kW_to_50MW,rigid,C_D,7.1
+group1_large_300kW_to_50MW,flexible,A_B,3.5
+group1_large_300kW_to_50MW,flexible,B_C,7.1
+group1_large_300kW_to_50MW,flexible,C_D,11.0
+group2_medium_15kW_to_300kW,rigid,A_B,1.4
+group2_medium_15kW_to_300kW,rigid,B_C,2.8
+group2_medium_15kW_to_300kW,rigid,C_D,4.5
+group2_medium_15kW_to_300kW,flexible,A_B,2.3
+group2_medium_15kW_to_300kW,flexible,B_C,4.5
+group2_medium_15kW_to_300kW,flexible,C_D,7.1

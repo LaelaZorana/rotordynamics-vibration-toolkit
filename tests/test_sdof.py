@@ -14,10 +14,11 @@ def test_free_response_matches_log_decrement():
     s = SDOF.from_zeta(1.0, 100.0, 0.03)
     Td = 2 * np.pi / s.wd
     t = np.array([0.0, 3 * Td])
-    x = s.free_response(t, x0=1.0, v0=s.zeta * s.wn * 1.0 * 0)  # generic start
-    # peaks of the envelope-modulated cosine occur near multiples of Td
+    # with v0 = 0 the displacement samples at multiples of Td sit exactly on
+    # the decaying envelope times cos(0), so the identification is exact
+    x = s.free_response(t, x0=1.0, v0=0.0)
     zeta_id = damping_from_log_decrement(x[0], x[1], n=3)
-    assert abs(zeta_id - 0.03) < 2e-3
+    assert abs(zeta_id - 0.03) < 1e-10
 
 
 def test_free_response_initial_conditions_all_regimes():
@@ -38,11 +39,46 @@ def test_magnification_at_resonance():
     assert np.isclose(s.phase(1.0), np.pi / 2)
 
 
-def test_half_power():
+def test_half_power_from_numerical_bandwidth():
+    # locate the half power points on the magnification curve numerically, so
+    # the check is independent of the identification formula itself
+    from scipy.optimize import brentq
+
     zeta = 0.02
-    fn = 50.0
-    f1, f2 = fn * (1 - zeta), fn * (1 + zeta)
-    assert np.isclose(damping_from_half_power(f1, f2, fn), zeta)
+    s = SDOF.from_zeta(1.0, 100.0, zeta)
+    peak = s.magnification(np.sqrt(1 - 2 * zeta**2))
+    level = peak / np.sqrt(2.0)
+    r1 = brentq(lambda r: s.magnification(r) - level, 0.5, 1.0 - zeta / 2)
+    r2 = brentq(lambda r: s.magnification(r) - level, 1.0 + zeta / 2, 1.5)
+    fn = s.fn
+    zeta_id = damping_from_half_power(r1 * fn, r2 * fn, fn)
+    # the formula is a small damping approximation, good to order zeta squared
+    assert np.isclose(zeta_id, zeta, rtol=1e-2)
+
+
+def test_steady_state_amplitude_and_phase():
+    s = SDOF.from_zeta(2.0, 800.0, 0.1)
+    amp, ph = s.steady_state(F0=10.0, w=s.wn)
+    assert np.isclose(amp, 10.0 / 800.0 / (2 * 0.1))
+    assert np.isclose(ph, np.pi / 2)
+    amp0, ph0 = s.steady_state(F0=10.0, w=1e-6)
+    assert np.isclose(amp0, 10.0 / 800.0, rtol=1e-6)
+    assert abs(ph0) < 1e-6
+
+
+def test_input_validation():
+    import pytest
+
+    with pytest.raises(ValueError):
+        SDOF(0.0, 1.0)
+    with pytest.raises(ValueError):
+        SDOF(1.0, -1.0)
+    with pytest.raises(ValueError):
+        SDOF(1.0, 1.0, -0.1)
+    with pytest.raises(ValueError):
+        damping_from_log_decrement(1.0, 2.0)
+    with pytest.raises(ValueError):
+        isolator_stiffness(50.0, 1800.0, 0.1, zeta=-0.1)
 
 
 def test_transmissibility_closed_form_points():

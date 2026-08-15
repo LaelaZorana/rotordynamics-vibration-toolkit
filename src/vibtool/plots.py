@@ -1,9 +1,6 @@
 """Plot helpers. Each function returns the matplotlib figure."""
 from __future__ import annotations
 
-import matplotlib
-
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -32,7 +29,10 @@ def plot_mode_shapes(z, modes, omega, n=3, title="Shaft bending mode shapes"):
     fig, ax = plt.subplots(figsize=(6, 4))
     for i in range(n):
         shape = modes[0::4, i]
-        shape = shape / np.max(np.abs(shape))
+        peak = np.max(np.abs(shape))
+        if peak == 0.0:
+            raise ValueError(f"mode {i} has zero x translation, pass in plane mode vectors")
+        shape = shape / peak
         ax.plot(z, shape, marker="o", ms=3, label=f"mode {i+1}: {omega[i]/(2*np.pi):.1f} Hz")
     ax.set_xlabel("axial position z (m)")
     ax.set_ylabel("normalised deflection")

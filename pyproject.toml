@@ -4,10 +4,27 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vibtool"
-version = "0.1.0"
+version = "0.2.0"
 description = "Vibration and rotor dynamics analysis toolkit"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Laela Zorana", email = "zoranalaela9@gmail.com"}]
 requires-python = ">=3.10"
-dependencies = ["numpy", "scipy", "matplotlib"]
+dependencies = ["numpy", "scipy", "matplotlib", "pyyaml"]
+keywords = ["vibration", "rotordynamics", "campbell diagram", "finite elements"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/LaelaZorana/rotordynamics-vibration-toolkit"
+Issues = "https://github.com/LaelaZorana/rotordynamics-vibration-toolkit/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

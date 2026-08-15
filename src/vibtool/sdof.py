@@ -5,6 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from scipy.optimize import brentq
+
+# bracket for the numerical isolation branch solve: the isolation region starts
+# just above r = sqrt(2), and the upper end is doubled until it brackets the root
+_ISOLATION_BRACKET_LO = np.sqrt(2.0) * 1.0001
+_ISOLATION_BRACKET_HI = 10.0
 
 
 @dataclass
@@ -14,6 +20,12 @@ class SDOF:
     m: float
     k: float
     c: float = 0.0
+
+    def __post_init__(self):
+        if self.m <= 0 or self.k <= 0:
+            raise ValueError("m and k must be positive")
+        if self.c < 0:
+            raise ValueError("c must be nonnegative")
 
     @classmethod
     def from_zeta(cls, m: float, k: float, zeta: float) -> "SDOF":
@@ -78,13 +90,18 @@ class SDOF:
 
 
 def damping_from_log_decrement(x_i: float, x_n: float, n: int = 1) -> float:
-    """Damping ratio from peak amplitudes n cycles apart."""
+    """Damping ratio from peak amplitudes n cycles apart. Requires x_i > x_n > 0."""
+    if not x_i > x_n > 0:
+        raise ValueError("decaying positive peaks required: x_i > x_n > 0")
     delta = np.log(x_i / x_n) / n
     return float(delta / np.sqrt(4.0 * np.pi**2 + delta**2))
 
 
 def damping_from_half_power(f1: float, f2: float, fn: float) -> float:
-    """Damping ratio from half power (minus 3 dB) bandwidth of an FRF peak."""
+    """Damping ratio from half power (minus 3 dB) bandwidth of an FRF peak.
+
+    Small damping approximation, accurate to order zeta squared and reliable
+    for zeta well below about 0.1."""
     return float((f2 - f1) / (2.0 * fn))
 
 
@@ -104,17 +121,17 @@ def isolator_stiffness(m: float, rpm: float, target_T: float, zeta: float = 0.0)
     """
     if not 0.0 < target_T < 1.0:
         raise ValueError("target_T must be between 0 and 1 for isolation")
+    if zeta < 0:
+        raise ValueError("zeta must be nonnegative")
     w = rpm * 2.0 * np.pi / 60.0
-    if zeta == 0.0:
+    if zeta <= 0.0:
         r = np.sqrt(1.0 + 1.0 / target_T)
     else:
-        from scipy.optimize import brentq
-
         f = lambda r: transmissibility(r, zeta) - target_T
-        hi = 10.0
+        hi = _ISOLATION_BRACKET_HI
         while f(hi) > 0:
             hi *= 2.0
-        r = brentq(f, np.sqrt(2.0) * 1.0001, hi)
+        r = brentq(f, _ISOLATION_BRACKET_LO, hi)
     wn = w / r
     return float(m * wn**2)
 

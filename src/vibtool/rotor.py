@@ -2,10 +2,11 @@
 model with lumped disks, isotropic bearings and gyroscopic effects."""
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 
 import numpy as np
-from scipy.linalg import eig, eigh
+from scipy.linalg import eig, eigh, lu_factor, lu_solve
 
 from .beam import circular_section
 
@@ -21,6 +22,12 @@ class Jeffcott:
     k: float
     c: float = 0.0
     e: float = 0.0
+
+    def __post_init__(self):
+        if self.m <= 0 or self.k <= 0:
+            raise ValueError("m and k must be positive")
+        if self.c < 0:
+            raise ValueError("c must be nonnegative")
 
     @property
     def omega_cr(self) -> float:
@@ -110,6 +117,10 @@ class ShaftFE:
     bearings: list = field(default_factory=list)
 
     def __post_init__(self):
+        if self.n_el < 1:
+            raise ValueError("n_el must be at least 1")
+        if min(self.L, self.d, self.E, self.rho) <= 0:
+            raise ValueError("L, d, E and rho must be positive")
         self.A, self.I = circular_section(self.d)
         self.n_nodes = self.n_el + 1
         self.ndof = 4 * self.n_nodes
@@ -122,11 +133,21 @@ class ShaftFE:
         """kind: 'x','xs','y','ys' (s = slope)."""
         return 4 * node + {"x": 0, "xs": 1, "y": 2, "ys": 3}[kind]
 
+    def _check_node(self, node):
+        if not 0 <= node <= self.n_el:
+            raise ValueError(f"node {node} outside 0..{self.n_el}")
+
     def add_disk(self, node, m, Id, Ip):
+        self._check_node(node)
+        if m <= 0 or Id < 0 or Ip < 0:
+            raise ValueError("disk mass must be positive, inertias nonnegative")
         self.disks.append(Disk(node, m, Id, Ip))
         self._assemble()
 
     def add_bearing(self, node, k, c=0.0):
+        self._check_node(node)
+        if k <= 0 or c < 0:
+            raise ValueError("bearing stiffness must be positive, damping nonnegative")
         self.bearings.append(Bearing(node, k, c))
         self._assemble()
 
@@ -162,16 +183,30 @@ class ShaftFE:
                 K[i, i] += brg.k
                 C[i, i] += brg.c
         self.M, self.K, self.G, self.C = M, K, G, C
+        self._lu_cache = {}
+
+    def _keep(self, fixed_dofs):
+        """Indices of retained dofs after removing fixed_dofs."""
+        keep = np.arange(self.ndof)
+        if fixed_dofs is not None:
+            keep = np.setdiff1d(keep, np.asarray(fixed_dofs))
+        return keep
+
+    def _require_supported(self, fixed_dofs):
+        if not self.bearings and (fixed_dofs is None or len(fixed_dofs) == 0):
+            raise ValueError(
+                "the whirl analysis assumes a supported rotor: add bearings or pass fixed_dofs"
+            )
 
     # analysis ---------------------------------------------------------------
     def undamped_frequencies(self, n_modes=6, fixed_dofs=None):
         """Non rotating natural frequencies (rad/s) with optional pinned dofs."""
-        keep = np.arange(self.ndof)
-        if fixed_dofs is not None:
-            keep = np.setdiff1d(keep, np.asarray(fixed_dofs))
-        Kr = self.K[np.ix_(keep, keep)]
-        Mr = self.M[np.ix_(keep, keep)]
-        lam, phi = eigh(Kr, Mr)
+        keep = self._keep(fixed_dofs)
+        K_red = self.K[np.ix_(keep, keep)]
+        M_red = self.M[np.ix_(keep, keep)]
+        lam, phi = eigh(K_red, M_red)
+        if lam.size and lam.min() < -1e-8 * max(abs(lam.max()), 1.0):
+            warnings.warn("significantly negative eigenvalue found, check K and M", stacklevel=2)
         lam = np.clip(lam, 0.0, None)
         full = np.zeros((self.ndof, phi.shape[1]))
         full[keep] = phi
@@ -182,72 +217,94 @@ class ShaftFE:
         last = self.n_nodes - 1
         return [self.dof(0, "x"), self.dof(0, "y"), self.dof(last, "x"), self.dof(last, "y")]
 
-    def whirl_frequencies(self, Omega, n_modes=6):
+    def whirl_frequencies(self, Omega, n_modes=6, fixed_dofs=None):
         """Damped whirl frequencies (rad/s, positive) at spin speed Omega (rad/s).
 
-        Returns (omega, direction) with direction +1 forward, -1 backward, sorted
-        by frequency. Uses the state space eigenproblem with C + Omega G."""
-        n = self.ndof
-        Minv = np.linalg.inv(self.M)
+        Returns (omega, direction) with direction +1 forward, -1 backward and 0
+        when the whirl sense is numerically undetermined (degenerate pairs at
+        rest), sorted by frequency. Uses the state space eigenproblem with
+        C + Omega G. Requires a supported rotor: bearings or fixed_dofs."""
+        self._require_supported(fixed_dofs)
+        keep = self._keep(fixed_dofs)
+        key = tuple(keep)
+        if key not in self._lu_cache:
+            self._lu_cache[key] = lu_factor(self.M[np.ix_(keep, keep)])
+        lu = self._lu_cache[key]
+        n = keep.size
+        K_red = self.K[np.ix_(keep, keep)]
+        CG_red = (self.C + Omega * self.G)[np.ix_(keep, keep)]
         A = np.zeros((2 * n, 2 * n))
         A[:n, n:] = np.eye(n)
-        A[n:, :n] = -Minv @ self.K
-        A[n:, n:] = -Minv @ (self.C + Omega * self.G)
+        A[n:, :n] = -lu_solve(lu, K_red)
+        A[n:, n:] = -lu_solve(lu, CG_red)
         lam, vec = eig(A)
         w = lam.imag
-        mask = w > 1e-6
+        mask = w > 1e-6 * max(w.max(), 1.0)
         w = w[mask]
         vec = vec[:n, mask]
         order = np.argsort(w)
         w, vec = w[order], vec[:, order]
         direction = np.zeros(w.size)
+        x_full = np.zeros((self.ndof, w.size), dtype=complex)
+        x_full[keep] = vec
         for i in range(w.size):
-            v = vec[:, i]
+            v = x_full[:, i]
             x = v[0::4]
             y = v[2::4]
             j = np.argmax(np.abs(x) ** 2 + np.abs(y) ** 2)
             s = np.imag(np.conj(x[j]) * y[j])
-            direction[i] = -1.0 if s > 0 else 1.0
+            scale = np.abs(x[j]) ** 2 + np.abs(y[j]) ** 2
+            if abs(s) < 1e-9 * scale:
+                direction[i] = 0.0  # planar or degenerate: whirl sense undetermined
+            else:
+                direction[i] = -1.0 if s > 0 else 1.0
         return w[:n_modes], direction[:n_modes]
 
-    def campbell(self, Omega_range, n_modes=6):
+    def campbell(self, Omega_range, n_modes=6, fixed_dofs=None):
         """Whirl frequency map over spin speeds. Returns (W, D) arrays of shape
         (len(Omega_range), n_modes)."""
         W = np.zeros((len(Omega_range), n_modes))
         D = np.zeros_like(W)
         for i, Om in enumerate(Omega_range):
-            w, d = self.whirl_frequencies(Om, n_modes)
+            w, d = self.whirl_frequencies(Om, n_modes, fixed_dofs=fixed_dofs)
             W[i, : w.size] = w
             D[i, : d.size] = d
         return W, D
 
-    def critical_speeds(self, Omega_range, n_modes=6):
+    def critical_speeds(self, Omega_range, n_modes=6, fixed_dofs=None):
         """Synchronous critical speeds by detecting crossings of omega = Omega
-        on the Campbell diagram. Returns list of (Omega_cr, direction)."""
+        on the Campbell diagram, in either direction. Returns list of
+        (Omega_cr, direction)."""
         Omega_range = np.asarray(Omega_range, dtype=float)
-        W, D = self.campbell(Omega_range, n_modes)
+        W, D = self.campbell(Omega_range, n_modes, fixed_dofs=fixed_dofs)
         crits = []
         for k in range(n_modes):
             g = W[:, k] - Omega_range
             for i in range(len(Omega_range) - 1):
-                if g[i] > 0 and g[i + 1] <= 0:
+                if (g[i] > 0 and g[i + 1] <= 0) or (g[i] < 0 and g[i + 1] >= 0):
                     Om = Omega_range[i] - g[i] * (Omega_range[i + 1] - Omega_range[i]) / (g[i + 1] - g[i])
                     crits.append((float(Om), float(D[i, k])))
         crits.sort()
         return crits
 
-    def unbalance_response(self, Omega_range, node, me, n_modes=None):
-        """Steady state amplitude at each node for unbalance me (kg m) at node.
+    def unbalance_response(self, Omega_range, node, me, fixed_dofs=None):
+        """Steady state x amplitude at each node for unbalance me (kg m) at node.
 
         Solves (K - Omega^2 M + i Omega (C + Omega G)) q = f with a rotating
-        force in the x, y plane. Returns array (len(Omega), n_nodes) of radii."""
+        force in the x, y plane. Returns array (len(Omega), n_nodes). For the
+        isotropic bearings this class builds, the orbit is circular and the x
+        amplitude equals the whirl radius. Anisotropic extensions would need
+        both components."""
+        self._check_node(node)
         Omega_range = np.asarray(Omega_range, dtype=float)
+        keep = self._keep(fixed_dofs)
         out = np.zeros((Omega_range.size, self.n_nodes))
         for i, Om in enumerate(Omega_range):
             f = np.zeros(self.ndof, dtype=complex)
             f[self.dof(node, "x")] = me * Om**2
             f[self.dof(node, "y")] = -1j * me * Om**2
             Z = self.K - Om**2 * self.M + 1j * Om * (self.C + Om * self.G)
-            q = np.linalg.solve(Z, f)
+            q = np.zeros(self.ndof, dtype=complex)
+            q[keep] = np.linalg.solve(Z[np.ix_(keep, keep)], f[keep])
             out[i] = np.abs(q[0::4])
         return out

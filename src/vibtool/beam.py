@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import numpy as np
 
-# beta_n * L roots for the first few modes
+# beta_n * L roots of the frequency equations for the first five modes,
+# tabulated values as in Blevins, Formulas for Natural Frequency and Mode
+# Shape, Table 8-1, and Inman, Engineering Vibration, Table 6.4
 _BETA_L = {
     "pinned-pinned": lambda n: n * np.pi,
     "clamped-free": lambda n: [1.87510407, 4.69409113, 7.85475744, 10.99554073, 14.13716839][n - 1]

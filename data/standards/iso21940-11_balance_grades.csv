@@ -1,0 +1,12 @@
+grade,eper_omega_mm_s,example_machinery
+G0.4,0.4,gyroscopes and precision grinder spindles
+G1,1.0,tape recorder drives and machine tool spindles
+G2.5,2.5,turbines and compressors and machine tool drives and medium and large electric armatures
+G6.3,6.3,fans and flywheels and pump impellers and general machinery parts
+G16,16.0,cardan shafts and parts of crushing and agricultural machinery
+G40,40.0,car wheels and rims and drive shafts of vehicle engines
+G100,100.0,complete reciprocating engines of cars and trucks
+G250,250.0,rigidly mounted large four cycle engines
+G630,630.0,rigidly mounted large two cycle engines
+G1600,1600.0,crankshaft drives of large slow marine diesel engines
+G4000,4000.0,crankshaft drives of rigidly mounted slow marine diesel engines with uneven number of cylinders

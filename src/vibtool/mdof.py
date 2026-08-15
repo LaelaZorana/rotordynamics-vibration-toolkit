@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import warnings
+
 import numpy as np
 from scipy.linalg import eigh
 
@@ -40,6 +42,8 @@ class MDOF:
     def eigen(self) -> ModalResult:
         """Undamped eigenproblem K phi = w^2 M phi with mass normalised modes."""
         lam, phi = eigh(self.K, self.M)
+        if lam.min() < -1e-8 * max(abs(lam.max()), 1.0):
+            warnings.warn("significantly negative eigenvalue found, check K and M", stacklevel=2)
         lam = np.clip(lam, 0.0, None)
         return ModalResult(np.sqrt(lam), phi)
 
@@ -51,6 +55,13 @@ class MDOF:
         """Modal damping ratios assuming C is diagonalised by the modes."""
         res = self.eigen()
         Cm = res.modes.T @ self.C @ res.modes
+        off = Cm - np.diag(np.diag(Cm))
+        if np.linalg.norm(off) > 1e-6 * max(np.linalg.norm(np.diag(Cm)), 1e-300):
+            warnings.warn(
+                "C is not diagonalised by the undamped modes, modal damping "
+                "ratios are approximate, use direct_frf for the exact response",
+                stacklevel=2,
+            )
         with np.errstate(divide="ignore", invalid="ignore"):
             z = np.diag(Cm) / (2.0 * res.omega)
         return np.nan_to_num(z)
@@ -63,7 +74,7 @@ class MDOF:
         """
         w = np.atleast_1d(np.asarray(w, dtype=float))
         res = self.eigen()
-        n = n_modes or self.ndof
+        n = self.ndof if n_modes is None else n_modes
         phi = res.modes[:, :n]
         wn = res.omega[:n]
         zeta = self.modal_damping()[:n]
