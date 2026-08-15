@@ -1,6 +1,14 @@
 # Rotordynamics and Vibration Toolkit
 
-Most rotor dynamics code hands you a critical speed and expects you to trust it. This is a small Python library for linear vibration analysis and rotor dynamics, covering single and multi degree of freedom systems, isolator design, a Jeffcott rotor, and a Rayleigh beam finite element shaft model with lumped disks, isotropic bearings, gyroscopic effects and Campbell diagrams. There's a data layer too: rotor definition files for a small steam turbine and an EV traction motor, a synthetic run up measurement with an identification routine that recovers critical speed and damping from it, and the ISO 21940-11 balance grade and ISO 10816-3 vibration zone tables. Every closed form in the SDOF, MDOF, Jeffcott and beam modules is checked against an independent reference in the test suite, and the finite element model is cross checked against Euler-Bernoulli theory, the Jeffcott limit and the rigid disk gyroscopic formula. So when the shaft model reports 50.768 Hz, the closed form answer of 50.778 Hz is sitting right next to it in a test, and you can see for yourself how far apart they are.
+The shaft model here reports 50.768 Hz for the first bending mode of a pinned shaft, and the closed form answer of 50.778 Hz is sitting right next to it in a test. You can see the gap yourself. It's a small Python library for linear vibration analysis and rotor dynamics, and that pairing of a computed number with a reference number runs through all of it. Every closed form in the SDOF, MDOF, Jeffcott and beam modules is checked against an independent reference in the test suite, and the finite element model is cross checked against Euler-Bernoulli theory, the Jeffcott limit and the rigid disk gyroscopic formula. Here's what it covers.
+
+## What's in it
+
+- Single and multi degree of freedom systems, isolator design and a Jeffcott rotor.
+- A Rayleigh beam finite element shaft model with lumped disks, isotropic bearings, gyroscopic effects and Campbell diagrams.
+- Rotor definition files for a small steam turbine and an EV traction motor.
+- A synthetic run up measurement with an identification routine that recovers critical speed and damping from it.
+- The ISO 21940-11 balance grade and ISO 10816-3 vibration zone tables.
 
 ## Figures
 
